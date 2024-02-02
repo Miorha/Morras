@@ -4,4 +4,4 @@
 An 2D game based on OpenGL.
 
 #### Other sources
-(gitee source)[https://gitee.com/miorha/morras]
+source in Gitee -- https://gitee.com/miorha/morras
