@@ -73,30 +73,14 @@ class Block{
 	private:
 		int id,x,y;
 	public:
-		Block(int idb){
+		Block(int idb,int x,int y){
 			id=idb;
 		}Block(){
 			id=2;
-		}void draw(float stx,float sty){
-			if(id!=2){
-				glBegin(GL_POINTS);
-				for(int i=0;i<8;++i){
-					for(int j=0;j<8;++j){
-						glColor4f(tex[id][i][j][0],tex[id][i][j][1],tex[id][i][j][2],tex[id][i][j][3]);
-						glVertex2f(j*pix+stx,(7-i)*pix+sty); 
-					}
-				}glEnd();
-			}
-		}int getid(){
-			return id;
-		}
-} world[WWIDTH][WHEIGHT];
-
-class Player{
-	public:
-		int x=10,y=64;
-		int xx=0,yy=0;
-} player;
+		}void draw(float,float);
+		int getid();
+		void destroy();
+};
 
 class Entity{
 	private:
@@ -127,31 +111,83 @@ class Entity{
 				}
 			} */
 			nextplace=nextplaceb;
-		}void draw(float stx,float sty){
-			glBegin(GL_POINTS);
-			for(int i=0;i<8;++i){
-				for(int j=0;j<8;++j){
-					glColor4f(etex[type][i][j][0],etex[type][i][j][1],etex[type][i][j][2],etex[type][i][j][3]);
-					glVertex2f(j*pix+stx+xx*pix,(7-i)*pix+sty-yy*pix); 
-				}
-			}glEnd();
-			/*if(next!=NULL){
-				next->draw(stx+(nextplace%5-2)/pix,sty+(nextplace/5-2)/pix);
-			}*/
-		}int getx(){
-			return x;
-		}int gety(){
-			return y;
-		}void move(int dxx,int dyy){
-			xx+=dxx;
-			yy+=dyy;
-			x+=xx/9;
-			xx%=9;
-			y+=yy/9;
-			yy%=9;
-		} 
+		}
+		
+		void draw(float,float);
+		int getx();
+		int gety();
+		int getxx();
+		int getyy();
+		void move(int,int);
+		bool needupd();
+		void update(int);
 };
+
+Block world[WWIDTH][WHEIGHT];
 std::vector<Entity> elist;
+
+void Block::draw(float stx,float sty){
+	if(id!=2){
+		glBegin(GL_POINTS);
+		for(int i=0;i<8;++i){
+			for(int j=0;j<8;++j){
+				glColor4f(tex[id][i][j][0],tex[id][i][j][1],tex[id][i][j][2],tex[id][i][j][3]);
+				glVertex2f(j*pix+stx,(7-i)*pix+sty); 
+			}
+		}glEnd();
+	}
+}
+int Block::getid(){
+	return id;
+}
+void Block::destroy(){
+	world[x][y]=Block(2,x,y);
+}
+
+void Entity::draw(float stx,float sty){
+	glBegin(GL_POINTS);
+	for(int i=0;i<8;++i){
+		for(int j=0;j<8;++j){
+			glColor4f(etex[type][i][j][0],etex[type][i][j][1],etex[type][i][j][2],etex[type][i][j][3]);
+			glVertex2f(j*pix+stx+xx*pix,(7-i)*pix+sty-yy*pix); 
+		}
+	}glEnd();
+	/*if(next!=NULL){
+		next->draw(stx+(nextplace%5-2)/pix,sty+(nextplace/5-2)/pix);
+	}*/
+}int Entity::getx(){
+	return x;
+}int Entity::gety(){
+	return y;
+}int Entity::getxx(){
+	return xx;
+}int Entity::getyy(){
+	return yy;
+}void Entity::move(int dxx,int dyy){
+	if((x<15 && dxx<0) || (x>WWIDTH-15 && dxx>0) || (y<18 && dyy<0) || (y>WHEIGHT-15 && dyy>0)){
+		return;
+	}xx+=dxx;
+	yy+=dyy;
+	x+=xx/9;
+	xx%=9;
+	y+=yy/9;
+	yy%=9;
+}bool Entity::needupd(){
+	switch(type){
+		case 0:
+			return true;
+		case 1:
+			return false;
+	}
+}void Entity::update(int vindex){
+	switch(type){
+		case 0:
+			if(world[x][y-bool(yy)].getid()==2 && world[x-1][y-bool(yy)].getid()==2){
+				move(0,1);
+				elist[vindex+1].move(0,1);
+			}
+	}
+}
 
 void worldgnr(int seed){
 	noise.SetSeed(seed);
@@ -162,12 +198,12 @@ void worldgnr(int seed){
 		int dirtheight=int(noise.GetNoise(float(x)*1.5f,0.4f)*10)+64;
 		int stoneheight=dirtheight+rand()%3+3;
 		for(int y=0;y<dirtheight;++y){
-			world[x][y]=Block(2);
-		}world[x][dirtheight]=Block(0);
+			world[x][y]=Block(2,x,y);
+		}world[x][dirtheight]=Block(0,x,dirtheight);
 		for(int y=dirtheight+1;y<stoneheight;++y){
-			world[x][y]=Block(3);
+			world[x][y]=Block(3,x,y);
 		}for(int y=stoneheight;y<WHEIGHT;++y){
-			world[x][y]=Block(1);
+			world[x][y]=Block(1,x,y);
 		}
 	}
 }
@@ -175,8 +211,8 @@ void worldgnr(int seed){
 void setup(){
 	srand(time(0));
 	worldgnr(rand());
-	Entity playerdown=Entity(10,74,0,0,1,NULL,short(0));
-	Entity playerup=Entity(10,73,0,0,0,&playerdown,short(3));
+	Entity playerdown=Entity(WWIDTH/2,74,0,0,1,NULL,short(0));
+	Entity playerup=Entity(WWIDTH/2,73,0,0,0,&playerdown,short(3));
 	elist.push_back(playerup);
 	elist.push_back(playerdown);
 }
@@ -184,6 +220,7 @@ void setup(){
 long long flick=0;
 
 void GLmain(HWND hWnd,HDC hDC,HGLRC hRC){
+	//rendering
 	glClearColor(0.5f,1.0f,1.0f,0.0f);
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 	
@@ -191,12 +228,8 @@ void GLmain(HWND hWnd,HDC hDC,HGLRC hRC){
 	
 	for(float i=-1;i<1;i+=pix*9){
 		for(float j=-1;j<1;j+=pix*9){
-			world[int((i+1)/pix/9)+player.x-6][int((j+1)/pix/9)+player.y-6].draw(i-player.xx*pix,0-j+player.yy*pix);
+			world[int((i+1)/pix/9)+elist[0].getx()-11][int((j+1)/pix/9)+elist[0].gety()-11].draw(i-elist[0].getxx()*pix,0-j+elist[0].getyy()*pix);
 		}
-	}
-	
-	for(std::vector<Entity>::iterator iter=elist.begin();iter<elist.end();iter++){
-		iter->draw((iter->getx()-player.x)*pix*9-player.xx*pix,1-(iter->gety()-player.y)*pix*9+player.yy*pix);
 	}
 	
 	for(float i=-1;i<1;i+=pix){
@@ -212,26 +245,58 @@ void GLmain(HWND hWnd,HDC hDC,HGLRC hRC){
 		}
 	}
 	
-	if(GetKeyState('A') & 0x8000 && !(flick%30) && player.x>8){
-		elist[0].move(-1,0);
-		elist[1].move(-1,0);
-		player.xx-=1;
-	}if(GetKeyState('D') & 0x8000 && !(flick%30) && player.x<WWIDTH-8){
-		elist[0].move(1,0);
-		elist[1].move(1,0);
-		player.xx+=1;
-	}if(GetKeyState(VK_SPACE) & 0x8000 && !(flick%30) && player.y>8){
-		elist[0].move(0,-1);
-		elist[1].move(0,-1);
-		player.yy-=1;
-	}if(GetKeyState(VK_SHIFT) & 0x8000 && !(flick%30) && player.y<WHEIGHT-8){
-		elist[0].move(0,1);
-		elist[1].move(0,1);
-		player.yy+=1;
-	}player.x+=player.xx/9;
-	player.xx%=9;
-	player.y+=player.yy/9;
-	player.yy%=9;
+	for(std::vector<Entity>::iterator iter=elist.begin();iter<elist.end();iter++){
+		iter->draw((iter->getx()-elist[0].getx())*pix*9-elist[0].getxx()*pix,1-(iter->gety()-elist[0].gety())*pix*9+elist[0].getyy()*pix-pix*9*10);
+	}
+	
+	//updating
+	if(!(flick%30)){		
+		if(GetKeyState('A') & 0x8000  && elist[0].getx()>8){
+			elist[0].move(-1,0);
+			elist[1].move(-1,0);
+		}if(GetKeyState('D') & 0x8000  && elist[0].getx()<WWIDTH-8){
+			elist[0].move(1,0);
+			elist[1].move(1,0);
+		}if(GetKeyState(VK_SPACE) & 0x8000  && elist[0].gety()>8){
+			elist[0].move(0,-1);
+			elist[1].move(0,-1);
+		}if(GetKeyState(VK_SHIFT) & 0x8000  && elist[0].gety()<WHEIGHT-8){
+			elist[0].move(0,1);
+			elist[1].move(0,1);
+		}if(GetKeyState('I') & 0x8000){
+			if(GetKeyState(VK_CONTROL)){
+				//use the block (unwrote)
+			}else{
+				//destroy the block (have bug)
+				world[elist[0].getx()][elist[0].gety()].destroy();
+			}
+		}if(GetKeyState('J') & 0x8000){
+			if(GetKeyState(VK_CONTROL)){
+				
+			}else{
+				
+			}
+		}if(GetKeyState('K') & 0x8000){
+			if(GetKeyState(VK_CONTROL)){
+				
+			}else{
+				
+			}
+		}if(GetKeyState('L') & 0x8000){
+			if(GetKeyState(VK_CONTROL)){
+				
+			}else{
+				
+			}
+		}
+		
+		int idx=0;
+		for(std::vector<Entity>::iterator iter=elist.begin();iter!=elist.end();iter++){
+			if(iter->needupd()){
+				iter->update(idx);
+			}
+		}
+	}
 	
 	++flick;
     SwapBuffers (hDC);
@@ -286,6 +351,10 @@ int WINAPI WinMain (HINSTANCE hInstance,
     EnableOpenGL (hWnd, &hDC, &hRC);
 	
 	setup();
+	
+	/*int threadid=0;
+	HANDLE hThread=CreateThread(NULL,0,updmain,NULL,0,(LPDWORD)threadid);
+	ResumeThread(hThread);*/
 	
     /* program main loop */
     while (!bQuit)
@@ -343,12 +412,12 @@ LRESULT CALLBACK WndProc (HWND hWnd, UINT message,
     case WM_KEYDOWN:
         switch (wParam)
         {
-        case VK_ESCAPE:
-            PostQuitMessage(0);
-            return 0;
-        }
-        return 0;
-
+        	case VK_ESCAPE:
+        	    PostQuitMessage(0);
+       	     	return 0;
+       	    	
+        }return 0;
+	
     default:
         return DefWindowProc (hWnd, message, wParam, lParam);
     }
